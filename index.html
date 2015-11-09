@@ -1,0 +1,316 @@
+<!doctype html>
+<html lang="en">
+
+	<head>
+		<meta charset="utf-8">
+
+		<title>reveal.js - The HTML Presentation Framework</title>
+
+		<meta name="description" content="A framework for easily creating beautiful presentations using HTML">
+		<meta name="author" content="Hakim El Hattab">
+
+		<meta name="apple-mobile-web-app-capable" content="yes" />
+		<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+
+		<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, minimal-ui">
+		<link href='https://fonts.googleapis.com/css?family=Halant:400' rel='stylesheet' type='text/css'>
+		<link href='https://fonts.googleapis.com/css?family=Kreon:400,700,300' rel='stylesheet' type='text/css'>
+		<link href='https://fonts.googleapis.com/css?family=Source+Sans+Pro:200' rel='stylesheet' type='text/css'>
+		<link rel="stylesheet" href="css/reveal.css">
+		<link rel="stylesheet" href="css/theme/black.css" id="theme">
+		<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.4.0/css/font-awesome.min.css">
+
+		<!-- Code syntax highlighting -->
+		<link rel="stylesheet" href="lib/css/zenburn.css">
+
+		<!-- Printing and PDF exports -->
+		<script>
+			var link = document.createElement( 'link' );
+			link.rel = 'stylesheet';
+			link.type = 'text/css';
+			link.href = window.location.search.match( /print-pdf/gi ) ? 'css/print/pdf.css' : 'css/print/paper.css';
+			document.getElementsByTagName( 'head' )[0].appendChild( link );
+		</script>
+		<script src="https://cdnjs.cloudflare.com/ajax/libs/processing.js/1.4.8/processing.js"></script>
+
+		<!--[if lt IE 9]>
+		<script src="lib/js/html5shiv.js"></script>
+		<![endif]-->
+
+		    <link rel="stylesheet" href="css/paper.css">
+    <script type="text/javascript" src="js/paper-full.min.js"></script>
+    <script type="text/javascript" src="http://jonathanpuckey.com/static/rhill-voronoi-core.js"></script>
+    <script type="text/paperscript" canvas="canvas">
+        var voronoi =  new Voronoi();
+        var sites = generateBeeHivePoints(view.size / 350, true);
+        var bbox, diagram;
+        var oldSize = view.size;
+        var spotColor = new Color('#6a6482');
+        var mousePos = view.center;
+        var selected = false;
+
+        onResize();
+
+        function onMouseDown(event) {
+            sites.push(event.point);
+            renderDiagram();
+        }
+
+        function onMouseMove(event) {
+            mousePos = event.point;
+            if (event.count == 0)
+                sites.push(event.point);
+            sites[sites.length - 1] = event.point;
+            renderDiagram();
+        }
+
+        function renderDiagram() {
+            project.activeLayer.children = [];
+            var diagram = voronoi.compute(sites, bbox);
+            if (diagram) {
+                for (var i = 0, l = sites.length; i < l; i++) {
+                    var cell = diagram.cells[sites[i].voronoiId];
+                    if (cell) {
+                        var halfedges = cell.halfedges,
+                            length = halfedges.length;
+                        if (length > 2) {
+                            var points = [];
+                            for (var j = 0; j < length; j++) {
+                                v = halfedges[j].getEndpoint();
+                                points.push(new Point(v));
+                            }
+                            createPath(points, sites[i]);
+                        }
+                    }
+                }
+            }
+        }
+
+        function removeSmallBits(path) {
+            var averageLength = path.length / path.segments.length;
+            var min = path.length / 50;
+            for(var i = path.segments.length - 1; i >= 0; i--) {
+                var segment = path.segments[i];
+                var cur = segment.point;
+                var nextSegment = segment.next;
+                var next = nextSegment.point + nextSegment.handleIn;
+                if (cur.getDistance(next) < min) {
+                    segment.remove();
+                }
+            }
+        }
+
+        function generateBeeHivePoints(size, loose) {
+            var points = [];
+            var col = view.size / size;
+            for(var i = -1; i < size.width + 1; i++) {
+                for(var j = -1; j < size.height + 1; j++) {
+                    var point = new Point(i, j) / new Point(size) * view.size + col / 2;
+                    if (j % 2)
+                        point += new Point(col.width / 2, 0);
+                    if (loose)
+                        point += (col / 4) * Point.random() - col / 4;
+                    points.push(point);
+                }
+            }
+            return points;
+        }
+        function createPath(points, center) {
+            var path = new Path();
+            if (!selected) {
+                path.fillColor = spotColor;
+            } else {
+                path.fullySelected = selected;
+            }
+            path.closed = true;
+
+            for (var i = 0, l = points.length; i < l; i++) {
+                var point = points[i];
+                var next = points[(i + 1) == points.length ? 0 : i + 1];
+                var vector = (next - point) / 2;
+                path.add({
+                    point: point + vector,
+                    handleIn: -vector,
+                    handleOut: vector
+                });
+            }
+            path.scale(0.95);
+            removeSmallBits(path);
+            return path;
+        }
+
+        function onResize() {
+            var margin = 20;
+            bbox = {
+                xl: margin,
+                xr: view.bounds.width - margin,
+                yt: margin,
+                yb: view.bounds.height - margin
+            };
+            for (var i = 0, l = sites.length; i < l; i++) {
+                sites[i] = sites[i] * view.size / oldSize;
+            }
+            oldSize = view.size;
+            renderDiagram();
+        }
+
+        function onKeyDown(event) {
+            if (event.key == 'space') {
+                selected = !selected;
+                renderDiagram();
+            }
+        }
+    </script>
+
+	</head>
+
+	<body>
+
+		<div class="reveal">
+
+			<!-- Any section element inside of this container is displayed as a slide -->
+			<div class="slides">
+				<section>
+					<!-- <canvas data-processing-sources="sketch.pde"></canvas> -->
+					 <canvas id="canvas" resize></canvas>
+					<section data-background="#5E5974" style="background: none; padding-left:1em;">
+							<h1>Hi, I'm Jayati</h1>
+							<h2>I'm an Interaction Designer based in NYC</h2>
+							<p>Explore this site with arrows <i class="fa fa-arrows"></i> bottom-right or your keyboard's <i class="fa fa-keyboard-o"></i></p>
+					</section>
+				</section>
+
+				<!-- Example of nested vertical slides -->
+				<section>
+					<section data-background-video="images/recipe.webm" data-background-color="#ececec">
+						<h1>Recipe Encyclopedia</h1>
+						<p>Serif typefaces tend to be thought of as classic and traditional, whereas sans-serif typefaces are thought of as more modern and contemporary. The fine details of serifs, especially the more delicate and high-contrast designs, don’t always display well on screens.</p>
+					</section>
+<!-- 					<section data-background="#87D7D3">
+						<h2>What's the best <em>syntax</em> for recieps</h2>
+						<p>Serif typefaces tend to be thought of as classic and traditional, whereas sans-serif typefaces are thought of as more modern and contemporary. The fine details of serifs, especially the more delicate and high-contrast designs, don’t always display well on screens.</p>
+					</section>
+					<section data-background="#87D7D3">
+							<h2>How do we understand the names of foreign dishes</h2>
+							<p>Serif typefaces tend to be thought of as classic and traditional, whereas sans-serif typefaces are thought of as more modern and contemporary. The fine details of serifs, especially the more delicate and high-contrast designs, don’t always display well on screens.</p>
+					</section>
+					<section data-background="#87D7D3">
+							<h2>How to represent variations in a recipe</h2>
+							<p>Serif typefaces tend to be thought of as classic and traditional, whereas sans-serif typefaces are thought of as more modern and contemporary. The fine details of serifs, especially the more delicate and high-contrast designs, don’t always display well on screens.</p>
+					</section>
+					<section data-background="#87D7D3">
+							<h2>How can we emphasise cross cultural overlaps</h2>
+							<p>Serif typefaces tend to be thought of as classic and traditional, whereas sans-serif typefaces are thought of as more modern and contemporary. The fine details of serifs, especially the more delicate and high-contrast designs, don’t always display well on screens.</p>
+					</section> -->
+				</section>
+
+				<section>
+					<section data-background-video="images/lumen.webm" data-background-color="#000">
+							<h1>Connected Shoe</h1>
+							<p>Serif typefaces tend to be thought of as classic and traditional, whereas sans-serif typefaces are thought of as more modern and contemporary. The fine details of serifs, especially the more delicate and high-contrast designs, don’t always display well on screens.</p>
+					</section>
+<!-- 					<section data-background="#87D7D3">
+							<h2>How does a connected shoe behave</h2>
+							<p>Serif typefaces tend to be thought of as classic and traditional, whereas sans-serif typefaces are thought of as more modern and contemporary. The fine details of serifs, especially the more delicate and high-contrast designs, don’t always display well on screens.</p>
+					</section>
+					<section data-background="#87D7D3">
+							<h2>What behaviour can it enduce</h2>
+							<p>Serif typefaces tend to be thought of as classic and traditional, whereas sans-serif typefaces are thought of as more modern and contemporary. The fine details of serifs, especially the more delicate and high-contrast designs, don’t always display well on screens.</p>
+					</section>
+					<section data-background="#87D7D3">
+							<h2>What's the network system</h2>
+							<p>Serif typefaces tend to be thought of as classic and traditional, whereas sans-serif typefaces are thought of as more modern and contemporary. The fine details of serifs, especially the more delicate and high-contrast designs, don’t always display well on screens.</p>
+					</section>
+					<section data-background="#87D7D3">
+							<h2><em>Is there an app for it</em></h2>
+							<p>Serif typefaces tend to be thought of as classic and traditional, whereas sans-serif typefaces are thought of as more modern and contemporary. The fine details of serifs, especially the more delicate and high-contrast designs, don’t always display well on screens.</p>
+					</section> -->
+				</section>
+
+				<section>
+					<section data-background-video="images/humans.webm" data-background-color="#A7CACA">
+							<h1>World Fact Book Visualised</h1>
+							<p>Serif typefaces tend to be thought of as classic and traditional, whereas sans-serif typefaces are thought of as more modern and contemporary. The fine details of serifs, especially the more delicate and high-contrast designs, don’t always display well on screens.</p>
+					</section>
+<!-- 					<section data-background="#87D7D3">
+							<h2>What's the relationship of language and colonised countries</h2>
+							<p>Serif typefaces tend to be thought of as classic and traditional, whereas sans-serif typefaces are thought of as more modern and contemporary. The fine details of serifs, especially the more delicate and high-contrast designs, don’t always display well on screens.</p>
+					</section>
+					<section data-background="#87D7D3">
+						<h2>How is Human trafficing, refuges and internally displaced persons connected</h2>
+						<p>Serif typefaces tend to be thought of as classic and traditional, whereas sans-serif typefaces are thought of as more modern and contemporary. The fine details of serifs, especially the more delicate and high-contrast designs, don’t always display well on screens.</p>
+					</section>
+					<section data-background="#87D7D3">
+						<h2>Do countries with high GDP have a higher life expectancy</h2>
+						<p>Serif typefaces tend to be thought of as classic and traditional, whereas sans-serif typefaces are thought of as more modern and contemporary. The fine details of serifs, especially the more delicate and high-contrast designs, don’t always display well on screens.</p>
+					</section>
+					<section data-background="#87D7D3">
+						<h2>What does globalisation look like</h2>
+						<p>Serif typefaces tend to be thought of as classic and traditional, whereas sans-serif typefaces are thought of as more modern and contemporary. The fine details of serifs, especially the more delicate and high-contrast designs, don’t always display well on screens.</p>
+					</section> -->
+				</section>
+
+				
+				<section>
+					<section data-background-video="images/dance.webm" data-background-color="#000">
+							<h1>Critical Moment</h1>
+							<p>Serif typefaces tend to be thought of as classic and traditional, whereas sans-serif typefaces are thought of as more modern and contemporary. The fine details of serifs, especially the more delicate and high-contrast designs, don’t always display well on screens.</p>
+					</section>
+<!-- 					<section data-background="#87D7D3">
+							<h2>How does a connected shoe behave</h2>
+							<p>Serif typefaces tend to be thought of as classic and traditional, whereas sans-serif typefaces are thought of as more modern and contemporary. The fine details of serifs, especially the more delicate and high-contrast designs, don’t always display well on screens.</p>
+					</section>
+					<section data-background="#87D7D3">
+							<h2>What behaviour can it enduce</h2>
+							<p>Serif typefaces tend to be thought of as classic and traditional, whereas sans-serif typefaces are thought of as more modern and contemporary. The fine details of serifs, especially the more delicate and high-contrast designs, don’t always display well on screens.</p>
+					</section>
+					<section data-background="#87D7D3">
+							<h2>What's the network system</h2>
+							<p>Serif typefaces tend to be thought of as classic and traditional, whereas sans-serif typefaces are thought of as more modern and contemporary. The fine details of serifs, especially the more delicate and high-contrast designs, don’t always display well on screens.</p>
+					</section>
+					<section data-background="#87D7D3">
+							<h2><em>Is there an app for it</em></h2>
+							<p>Serif typefaces tend to be thought of as classic and traditional, whereas sans-serif typefaces are thought of as more modern and contemporary. The fine details of serifs, especially the more delicate and high-contrast designs, don’t always display well on screens.</p>
+					</section> -->
+				</section>
+				<section>
+					<section data-background="#5E5974">
+							<h1>Thanks ! </h1>
+							<p>Serif typefaces tend to be thought of as classic and traditional, whereas sans-serif typefaces are thought of as more modern and contemporary. The fine details of serifs, especially the more delicate and high-contrast designs, don’t always display well on screens.</p>
+					</section>
+				</section>
+
+			</div>
+
+		</div>
+
+		<script src="lib/js/head.min.js"></script>
+		<script src="js/reveal.js"></script>
+
+		<script>
+
+			// Full list of configuration options available at:
+			// https://github.com/hakimel/reveal.js#configuration
+			Reveal.initialize({
+				controls: true,
+				progress: false,
+				history: true,
+				center: false,
+
+				transition: 'slide', // none/fade/slide/convex/concave/zoom
+
+				// Optional reveal.js plugins
+				dependencies: [
+					{ src: 'lib/js/classList.js', condition: function() { return !document.body.classList; } },
+					{ src: 'plugin/markdown/marked.js', condition: function() { return !!document.querySelector( '[data-markdown]' ); } },
+					{ src: 'plugin/markdown/markdown.js', condition: function() { return !!document.querySelector( '[data-markdown]' ); } },
+					{ src: 'plugin/highlight/highlight.js', async: true, condition: function() { return !!document.querySelector( 'pre code' ); }, callback: function() { hljs.initHighlightingOnLoad(); } },
+					{ src: 'plugin/zoom-js/zoom.js', async: true },
+					{ src: 'plugin/notes/notes.js', async: true }
+				]
+			});
+
+		</script>
+
+	</body>
+</html>
